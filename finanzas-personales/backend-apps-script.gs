@@ -1,0 +1,9 @@
+/** Backend privado para la plataforma financiera. Cambie PRIVATE_TOKEN únicamente dentro de Apps Script, no en GitHub. */
+const PRIVATE_TOKEN='CAMBIE-ESTE-TOKEN-POR-UNO-LARGO-Y-PRIVADO';
+function db_(){return SpreadsheetApp.getActiveSpreadsheet()}
+function check_(t){if(!t||t!==PRIVATE_TOKEN)throw new Error('Token inválido')}
+function allSheets_(){const o={};db_().getSheets().forEach(s=>{const r=Math.max(s.getLastRow(),1),c=Math.max(s.getLastColumn(),1);o[s.getName()]=s.getRange(1,1,r,c).getValues()});return o}
+function out_(o,cb){const t=JSON.stringify(o);return ContentService.createTextOutput(cb?`${cb}(${t});`:t).setMimeType(cb?ContentService.MimeType.JAVASCRIPT:ContentService.MimeType.JSON)}
+function doGet(e){try{check_(e.parameter.token);return out_({ok:true,sheets:allSheets_(),ts:new Date().toISOString()},e.parameter.callback)}catch(err){return out_({ok:false,error:String(err.message||err)},e.parameter.callback)}}
+function addMovement_(m){const s=db_().getSheetByName('Movimientos');if(!s)throw new Error('No existe Movimientos');const d=new Date(m.date+'T12:00:00'),day=d.getDate(),id=m.id||('WEB-'+Date.now());s.appendRow([id,d,m.type||'Gasto',m.category||m.cat||'Otro',m.sub||(m.type==='Ahorro'||m.type==='Inversión'||m.type==='Colchón'?'Aporte':'Retiro'),m.description||m.desc||'',Number(m.amount||m.amt)||0,m.payment||m.pay||'',m.account||m.acc||'',day<=15?'Q1':'Q2',Utilities.formatDate(d,Session.getScriptTimeZone(),'yyyy-MM'),d.getFullYear(),m.debt||'',m.notes||'', 'OK',m.expenseSub||'']);return id}
+function doPost(e){try{const b=JSON.parse(e.postData.contents||'{}');check_(b.token);if(b.action==='addMovement')return out_({ok:true,id:addMovement_(b.movement||{})});throw new Error('Acción no soportada')}catch(err){return out_({ok:false,error:String(err.message||err)})}}
